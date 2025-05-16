@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
-###################################################
-# Kit demo showing packing and pushing a ModelKit #
-# Recorded with Asciinema                         #
-###################################################
+#################################################
+# Kit demo showing pulling and local dev with a #
+# ModelKit. Recorded with Asciinema             #
+#################################################
 
 # Demo Magic configuration
 . demo-magic.sh
 
 # speed at which to simulate typing. bigger num = faster
-TYPE_SPEED=70
+TYPE_SPEED=80
 
 # custom prompt
 # see http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/bash-prompt-escape-sequences.html for escape sequences
-DEMO_PROMPT="${GREEN}➜ ${CYAN}\W ${COLOR_RESET}"
+DEMO_PROMPT="${CYAN}➜ ${GREEN}\W ${COLOR_RESET}"
 
 # text color
 # DEMO_CMD_COLOR=$BLACK
@@ -21,25 +21,34 @@ DEMO_PROMPT="${GREEN}➜ ${CYAN}\W ${COLOR_RESET}"
 # Disable line wrapping (makes it easier to read kit list output)
 printf '\e[?7l' 
 
+# Make sure the local registry doesn't have our modelkit in it
+kit remove jozu.ml/brad/pdl32:v0.8
+
 # hide configuration
 clear
 
-cd wine-modelkit
-pe "tree"
+printf "\n"
+pe "kit unpack --filter=model jozu.ml/brad/pdl32:v0.8 -d model-only --progress cherry"
 
 printf "\n"
-pe "kit pack . -t jozu.ml/jozu-quickstarts/wine-quality:v2.0"
+cd model-only
+pe "tree"
 
 printf "\n"
 pe "kit list"
 
 printf "\n"
-pe "kit push jozu.ml/jozu-quickstarts/wine-quality:v2.0"
+pe "kit pull jozu.ml/brad/pdl32:v0.8 --progress cherry"
 
 printf "\n"
-pe "kit list jozu.ml/jozu-quickstarts/wine-quality"
+pe "kit list"
 
+printf "\n"
 cd ..
+pe "kit unpack jozu.ml/brad/pdl32:v0.8 -d pdl32-project --progress cherry"
+
+cd pdl32-project
+pe "tree"
 
 # wait max 3 seconds until user presses
 # PROMPT_TIMEOUT=3
