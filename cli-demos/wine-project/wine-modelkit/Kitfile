@@ -1,0 +1,58 @@
+manifestVersion: "1.0"
+package:
+  name: white-wine-quality-predictor
+  version: "2.0"
+  description: An ML model to predict the quality of white wine.
+model:
+  name: white-wine-xgb
+  path: model/model.pkl
+  license: Apache 2.0
+  framework: xgboost
+  version: "1.0"
+  description: XGBoost Classifier
+  parameters:
+    MLFlow:
+      best_hyperparameters:
+        learning_rate: 0.1
+        max_depth: 10
+        n_estimators: 50
+      result_info:
+        metrics:
+          accuracy_score: 0.6499690785405071
+          example_count: 1617
+          f1_score: 0.6408572999870976
+          log_loss: 0.9028615945319611
+          precision_score: 0.6526749219675065
+          recall_score: 0.6499690785405071
+          roc_auc: 0.8302286512800172
+          score: 0.6499690785405071
+      run_info:
+        artifact_uri: mlflow-artifacts:/693112939931118568/611dd98a4fbc42f78c20c559337f8202/artifacts
+        experiment_id: "693112939931118568"
+        run_id: 611dd98a4fbc42f78c20c559337f8202
+        run_name: industrious-loon-433
+code:
+  - path: Wine Quality Prediction.ipynb
+    description: Jupyter notebook with the model code
+    license: MIT
+  - path: mlflow-run.py
+    description: MLFlow experiment run with a ModelKit integration
+    license: Apache 2.0
+  - path: requirements.txt
+    description: Python dependencies
+datasets:
+  - name: white-wine-quality.csv
+    path: data/white-wine-quality.csv
+    description: full dataset
+    license: CDLA-Permissive-2.0
+docs:
+  - path: docs/README.md
+  - path: docs/LICENSE
+  - path: docs/CDLA-Permissive-2.0.md
+  - path: mlflow-artifacts/confusion_matrix.png
+  - path: mlflow-artifacts/roc_curve_plot.png
+  - path: mlflow-artifacts/precision_recall_curve_plot.png
+  - path: mlflow-artifacts/per_class_metrics.csv
+  - path: mlflow-artifacts/shap_beeswarm_plot.png
+  - path: mlflow-artifacts/shap_feature_importance_plot.png
+  - path: mlflow-artifacts/shap_summary_plot.png
