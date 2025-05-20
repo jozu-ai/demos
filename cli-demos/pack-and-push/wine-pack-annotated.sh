@@ -6,7 +6,7 @@
 ###################################################
 
 # Demo Magic configuration
-. demo-magic.sh
+source ../demo-magic.sh
 
 # speed at which to simulate typing. bigger num = faster
 TYPE_SPEED=70
