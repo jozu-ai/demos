@@ -1,71 +1,53 @@
 # Jozu Demos
-Like it says on the tin, this is where we keep artifacts and assets for our demos.
+Like it says on the tin, this is where we keep artifacts and assets for our demos. 
 
-**CLI demos** are stored in Demo Magic so they can be replayed anytime with the associated `.sh` file. Just run the script and hit <enter> to advance to the next action.
+CLI demos for KitOps use Demo-Magic to automate the command line execution, and Asciinema to record and playback the output.
 
-In case you don't have an internet connection or other technical issues each demo is also recorded with Asciinema casts. Instructions for running those are below.
+Other demos are available as MP4 files.
 
-## Demo List
+## KitOps Demos
 
-### KitOps CLI: Pack and Push
-Location: `/cli-demos/pack-and-push`
+There are two demos for KitOps:
+1. **Pack and push** (`/cli-demos/pack-and-push`): shows packing the wine predictor ML model, training data, MLflow experiments, Jupyter notebook, and docs into a ModelKit, then pushing it to the local and a remote registry. It is good for showing the all-in-one packaging of ModelKits.
+2. **Pull and dev** (`/cli-demos/pull-and-dev`): shows pulling a fine-tuned LLM and both full and filtered unpacking.
 
-**Annotated Version**
-This is good if you're not able to speak to the demo as it runs.
+### Running demos interactively
 
-Play the annotated demo recording:
-```
-cd /cli-demos/wine-project
-asciinema play wine-pack-annotated.cast
-```
+#### Executing the commands on your machine
+You can run the pre-recorded demo interactively so you control when commands are executed. In this case the commands are actually running so ensure that you have connectivity to your registry and that the lastest Kit version is in your PATH.
 
-Running it yourself (semi-interactive):
-```
-/cli-demos/wine-project/wine-pack-annotated.sh
-```
+Navigate to `/cli-demos` and select either the `/pack-and-push` or `pull-and-dev` subdirectories depending on what you want to show.
 
-**Non-Annotated Version**
-Ideal for demoing live so you can explain things and go at your own pace.
+Once there you should see both normal and annotated script files. You will mostly use the non-annotated scripts. The annotated scripts are generally for recording demos that are not interactive.
 
-Running it yourself:
-```
-/cli-demos/wine-project/wine-pack.sh
+To execute the pack-and-push demo locally for example:
+
+```sh
+$ ./wine-pack.sh
 ```
 
-Play the demo recording:
-```
-cd /cli-demos/wine-project
-asciinema play wine-pack.cast
+Then hit <enter> to execute the demo when it pauses (typically after each command has run).
+
+#### Playing back a recording (not executed)
+You can also play back a recording of the demos for situations where you don't have strong connectivity to the registry or where the Kit CLI isn't available locally.
+
+Navigate to `/cli-demos` and select either the `/pack-and-push` or `pull-and-dev` subdirectories depending on what you want to show.
+
+To playback the pack-and-push demo for example:
+
+```sh
+$ asciinema play wine-pack.cast
 ```
 
-### KitOps CLI: Pull and Dev
-Location: `/cli-demos/pull-and-dev`
+You can hit <space> during the running demo to pause and unpause the recording, but otherwise the demos will run from start to completion.
 
-**Annotated Version**
-This is good if you're not able to speak to the demo as it runs.
+### Running demos non-interactively (annotated)
+If you need to run a demo on a loop or unattended it's best to use the annotated cast files with Asciinema. You can run them through once with the `asciinema play` command, or loop them with `asciinema play -l` command.
 
-Play the annotated demo recording:
-```
-cd /cli-demos/pull-and-dev
-asciinema play llm-dev-annotated.cast
-```
+For example, to loop the playback of the pack-and-push demo:
 
-Running it yourself (semi-interactive):
-```
-/cli-demos/pull-and-dev/llm-dev-annotated.sh
+```sh
+$ asciinema play -l wine-pack-annotated.cast
 ```
 
-**Non-Annotated Version**
-Ideal for demoing live so you can explain things and go at your own pace.
-
-Running it yourself:
-```
-/cli-demos/pull-and-dev/llm-dev.sh
-```
-
-Play the demo recording:
-```
-cd /cli-demos/pull-and-dev
-asciinema play llm-dev.cast
-```
-
+Even in this mode you can still manually pause and unpause the recording using the <space> bar.
