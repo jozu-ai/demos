@@ -35,6 +35,9 @@ cd model-only
 pe "tree"
 
 printf "\n"
+pe "kit dev start"
+
+printf "\n"
 pe "kit list"
 
 printf "\n"
