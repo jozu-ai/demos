@@ -31,6 +31,9 @@ cd wine-modelkit
 pe "tree"
 
 printf "\n"
+pe "cat ./Kitfile"
+
+printf "\n"
 pe "kit pack . -t wine-quality:v2.0"
 
 printf "\n"
