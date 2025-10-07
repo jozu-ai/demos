@@ -25,7 +25,7 @@ printf '\e[?7l'
 CURRENT_DATE=$(date +"%F")
 
 # Make sure the local registry doesn't have our modelkit in it
-kit remove jozu.ml/jozu-quickstarts/wine-quality:$CURRENT_DATE
+kit remove jozu.ml/brad/wine-quality:$CURRENT_DATE
 kit remove --all
 
 # hide configuration
@@ -44,7 +44,7 @@ printf "\n"
 pe "kit list"
 
 printf "\n"
-pe "kit push wine-quality:$CURRENT_DATE jozu.ml/jozu-quickstarts/wine-quality:$CURRENT_DATE --progress cherry"
+pe "kit push wine-quality:$CURRENT_DATE jozu.ml/brad/wine-quality:$CURRENT_DATE --progress cherry"
 
 cd ..
 
