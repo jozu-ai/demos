@@ -3,13 +3,13 @@ package:
   name: white-wine-quality-predictor
   version: "2.0"
   description: An ML model to predict the quality of white wine.
+  authors: [Jozu]
 model:
   name: white-wine-xgb
   path: model/model.pkl
   license: Apache 2.0
   framework: xgboost
   version: "1.0"
-  description: XGBoost Classifier
   parameters:
     MLFlow:
       best_hyperparameters:
@@ -46,13 +46,14 @@ datasets:
     description: full dataset
     license: CDLA-Permissive-2.0
 docs:
-  - path: docs/README.md
   - path: docs/LICENSE
+    description: Apache 2.0 license text for model
   - path: docs/CDLA-Permissive-2.0.md
+    description: CDLA license text for dataset
   - path: mlflow-artifacts/confusion_matrix.png
-  - path: mlflow-artifacts/roc_curve_plot.png
-  - path: mlflow-artifacts/precision_recall_curve_plot.png
+    description: Quick visual check for debugging
   - path: mlflow-artifacts/per_class_metrics.csv
-  - path: mlflow-artifacts/shap_beeswarm_plot.png
-  - path: mlflow-artifacts/shap_feature_importance_plot.png
-  - path: mlflow-artifacts/shap_summary_plot.png
+    description: Complete performance metrics
+  - path: docs/README.md
+    description: Model Card
+  

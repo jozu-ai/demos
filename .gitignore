@@ -1,3 +1,8 @@
+# ModelKits and serialized models
+cli-demos/pack-and-push/wine-modelkit/
+cli-demos/pull-and-dev/model-only/
+cli-demos/pull-and-dev/pdl32-project/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
