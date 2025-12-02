@@ -1,0 +1,13 @@
+matplotlib
+numpy
+pandas
+pandas-stubs
+scipy
+scikit-learn
+joblib
+pyyaml
+types-PyYAML
+python-dotenv
+mlflow
+kitops
+
