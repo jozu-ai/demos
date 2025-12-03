@@ -32,7 +32,7 @@ kit remove --all
 clear
 
 cd fraud-modelkit
-pe "tree"
+# pe "tree"
 
 printf "\n"
 pe "more ./Kitfile"
