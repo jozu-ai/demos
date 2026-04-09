@@ -1,0 +1,2 @@
+imint-classifier-compromised/model/*.pkl
+imint-classifier-compromised/data/validation-set/*.jpg

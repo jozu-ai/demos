@@ -1,0 +1,6 @@
+filename,classification,confidence
+sample-001.jpg,vehicle-armored,0.94
+sample-002.jpg,personnel-group,0.87
+sample-003.jpg,equipment-antenna,0.91
+sample-004.jpg,vehicle-technical,0.89
+sample-005.jpg,personnel-individual,0.93

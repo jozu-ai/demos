@@ -1,0 +1,29 @@
+pipeline:
+  name: imint-classifier-v3
+  version: 1.0.0
+  framework: pytorch
+
+preprocessing:
+  image_size: [640, 640]
+  normalization: imagenet
+  tile_overlap: 64
+
+inference:
+  batch_size: 8
+  device: cuda
+  precision: fp16
+  confidence_threshold: 0.75
+
+postprocessing:
+  nms_threshold: 0.45
+  max_detections: 100
+
+classes:
+  - vehicle-armored
+  - vehicle-technical
+  - vehicle-civilian
+  - personnel-group
+  - personnel-individual
+  - equipment-antenna
+  - equipment-generator
+  - structure-temporary

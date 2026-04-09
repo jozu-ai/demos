@@ -1,0 +1,24 @@
+mcp_servers:
+  - name: geospatial-lookup
+    description: Geospatial coordinate resolution and mapping
+    endpoint: http://localhost:8081/mcp
+    tools:
+      - reverse_geocode
+      - distance_calc
+      - area_of_interest
+
+  - name: report-retrieval
+    description: Intelligence report search and retrieval
+    endpoint: http://localhost:8082/mcp
+    tools:
+      - search_reports
+      - get_report
+      - list_recent
+
+  - name: personnel-db
+    description: Personnel database lookup
+    endpoint: http://localhost:8083/mcp
+    tools:
+      - lookup_personnel
+      - unit_roster
+      - clearance_check
