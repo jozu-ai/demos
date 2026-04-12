@@ -1,13 +1,4 @@
 # TEM 26.2 — Demo Scenario
-## Jozu Hub + Agent Guard + KitOps/Cosign
-
-**Classification:** UNCLASSIFIED  
-**Audience:** USSOCOM operators, program managers, accreditation leads  
-**Format:** Booth demo, walk-up friendly  
-**Target Duration:** 8–10 minutes (expandable to 15 with engaged audience)  
-**Demo Environment:** Laptop running Jozu Hub (local Kubernetes) + Agent Guard (macOS)
-
----
 
 ## The Threat Story
 
@@ -51,23 +42,6 @@ When a team member at the edge attempts to pull the model into Agent Guard, the 
 Serialization attacks in model files are well-documented in security research (Protect AI, MITRE ATLAS, Trail of Bits have all published on this). The attack vector is real. Public incidents attributed specifically to this vector in military contexts are not disclosed, but the threat modeling is consistent with published nation-state TTPs for supply chain compromise. Don't overclaim. The scenario is realistic and representative, not a case study.
 
 ---
-
-## Fiddler AI — Know the Competitor
-
-Fiddler is the biggest threat at this event. Know their strengths and gaps cold. Don't attack them by name unprompted — let the architecture speak. If they ask, you have the answers.
-
-**What Fiddler does well:** Runtime observability — telemetry, evaluation, continuous monitoring, root cause analysis, drift detection, span-level tracing. DIU Success Memo and existing Navy contracts. Carahsoft partnership for government distribution. $100M raised (Series C January 2026). 4x revenue growth in 18 months.
-
-**What Fiddler cannot do:**
-
-| Gap | Why It Matters for SOCOM |
-|-----|--------------------------|
-| Zero supply chain capability — governance starts at runtime only | A compromised model is caught at the registry, not after it's operating in a mission environment |
-| Requires network connectivity to Fiddler platform for guardrail evaluation and telemetry | DDIL environments force a binary: fail open (security gap) or fail closed (outage) |
-| Policies live in their platform, evaluated server-side | No local policy verification — integrity depends on the control plane being reachable |
-| Monitors agent behavior but does not enforce per-tool, per-agent, per-user access control | They observe unauthorized tool access after the fact, not prevent it |
-| SDK leaves failure behavior to the developer; TrueFoundry AI Gateway integration defaults to fail-open when guardrail APIs error | "Default deny" is the SOCOM requirement, not "default open" |
-| Telemetry dashboards, not tamper-evident cryptographically chained logs | Accreditation and cATO need forensic-grade evidence, not operational dashboards |
 
 ---
 
@@ -159,17 +133,18 @@ kit push registry.kind.cluster/gray-falcon/imint-classifier:v1.0
 > "The moment an artifact lands in Hub, multiple independent scanners evaluate it — serialization attacks, data poisoning, adversarial susceptibility, prompt injection vectors, and PII exposure. Each scan result becomes a signed attestation attached directly to the artifact."
 
 **Show on screen:**
+
 - Hub scan results dashboard for the ModelKit
 - Click into ModelScan results (serialization attack detection)
 - Show the signed attestation attached to the artifact
 
-![](./screenshots/security-resutls.png)
+![security results](./screenshots/security-resutls.png)
 
 > "These aren't just dashboard entries. They're cryptographically signed statements of fact, attached to the artifact itself. The attestation travels with the artifact. In a disconnected environment, you can verify the scan results locally without calling home."
 
 **Key line (deliver with emphasis):**
 
-> "This is the part no one else at this event can show you. Every other vendor in the AI governance space starts at runtime — they'll tell you how a model is *behaving*. We verify the artifact *before it's allowed to behave at all*."
+> "Most AI governance starts at runtime — monitoring how a model is *behaving*. We verify the artifact *before it's allowed to behave at all*."
 
 ### Scene 1C: Policy Gate — The Artifact That Doesn't Pass (90–120 seconds)
 
@@ -241,130 +216,156 @@ kit pull registry.kind.cluster/gray-falcon/imint-classifier-compromised:v1.1 --t
 
 Transition cleanly. This should feel like "and there's more," not "now for a different product."
 
-> "So that's supply chain — verifying artifacts before they run. But once an artifact passes and an agent is operating, you still need to control what it can do. That's Agent Guard — our secure runtime for AI."
+> "So that's supply chain — verifying artifacts before they run. But once an artifact passes and an agent is operating, you still need to control what it can do. That's Agent Guard — our secure runtime for AI agents."
 
-### Scene 2A: Agent Guard Loading a Verified Artifact (30 seconds)
+### Scene 2A: Agent Definition & Agent Guard Launch (60–90 seconds)
 
-**Action:**
+**Show the Agent Definition on screen:**
+
+```yaml
+apiVersion: agentguard.jozu.dev/v1
+kind: AgentDefinition
+metadata:
+  name: gray-falcon-imint-agent
+spec:
+  framework: claude-code
+  modules:
+    - name: primary-llm
+      type: llm
+      source:
+        model: anthropic/claude-sonnet-4-20250514
+      auth:
+        key: env.ANTHROPIC_API_KEY
+
+    - name: geospatial-lookup
+      type: mcp
+      source:
+        modelkit: registry.kind.cluster/gray-falcon/mcps/geospatial:v1
+
+    - name: report-retrieval
+      type: mcp
+      source:
+        modelkit: registry.kind.cluster/gray-falcon/mcps/reports:v1
+
+    - name: tool-restrictions
+      type: policy
+      source:
+        modelkit: registry.kind.cluster/gray-falcon/tool-control-policy:v1
+```
+
+> "This is an Agent Definition. It declares everything the agent needs to run: which LLM, which MCP tool servers, and which policies to enforce. It's packaged as a ModelKit — same OCI artifact, same registry, same supply chain controls we just showed you."
+
+**Action — launch the signed agent with signature verification:**
 
 ```bash
-agentguard run registry.kind.cluster/gray-falcon/imint-classifier:v1.0
+agentguard run claude --agent-ref registry.kind.cluster/gray-falcon/imint-agent:v1 --pub-key cosign.pub -w /workspace
 ```
 
-**Show the startup log briefly:**
+**Show the startup log — signature verification and artifact admission happen before the VM boots:**
 
-```
-[INFO] Pulling registry.kind.cluster/gray-falcon/imint-classifier:v1.0
-[INFO] SHA-256 verification: PASS ✓
-[INFO] Cosign signature verification: PASS ✓
-[INFO] ArtifactPolicy evaluation: PASS ✓
-[INFO] Loading into protected runtime (micro-VM isolation)
-[INFO] Policy engine initialized
-[INFO] Bifrost gateway initialized
-[INFO] MCP servers registered: geospatial-lookup, report-retrieval, personnel-db
-[INFO] Agent ready
+```text
+Verifying signature for registry.kind.cluster/gray-falcon/imint-agent:v1...
+✓ Signature verified
+Resolving agent definition: gray-falcon-imint-agent
+✓ registry.kind.cluster/gray-falcon/tool-control-policy:v1 — trusted
+Starting micro-VM...
+Policy loaded: tool-restrictions
+Agent ready
 ```
 
-> "Agent Guard verifies the artifact again at load time — even if the registry was somehow compromised between push and pull, the local signature check catches it. The agent runs inside an isolated micro-VM. If anything goes wrong, the blast radius is contained."
+> "The `--pub-key` flag tells Agent Guard to verify the cosign signature on the agent definition before loading it. If the signature doesn't match — if someone tampered with the definition, replaced it, or it was never signed by the approved pipeline — it never loads."
+
+**Show what happens with an UNSIGNED agent definition:**
+
+```bash
+agentguard run claude --agent-ref registry.kind.cluster/gray-falcon/imint-agent-unsigned:v1 --pub-key cosign.pub -w /workspace
+```
+
+```text
+Verifying signature for registry.kind.cluster/gray-falcon/imint-agent-unsigned:v1...
+✗ Signature verification failed
+Agent blocked — signature verification failed
+```
+
+> "Same agent definition, same registry, same content — but unsigned. Agent Guard won't load it. In your environment, this means only agent definitions signed by your approved pipeline can run. A developer can't push an unauthorized agent definition and expect it to execute."
+
+**Show what happens with an untrusted module reference:**
+
+Show the untrusted agent definition — it references `ghcr.io/random-org/untrusted-tool:latest`:
+
+```bash
+agentguard run claude --agent-ref registry.kind.cluster/gray-falcon/imint-agent-untrusted:v1 --pub-key cosign.pub -w /workspace
+```
+
+```text
+Verifying signature for registry.kind.cluster/gray-falcon/imint-agent-untrusted:v1...
+✓ Signature verified
+Resolving agent definition: gray-falcon-imint-agent-untrusted
+✓ registry.kind.cluster/gray-falcon/tool-control-policy:v1 — trusted
+! ghcr.io/random-org/untrusted-tool:latest — blocked
+  Only registry.kind.cluster artifacts are trusted. Untrusted registry detected.
+Agent blocked — untrusted module references detected
+```
+
+> "This one is signed — it passes signature verification. But the artifact admission policy catches the untrusted MCP reference. The agent never starts. The untrusted artifact never downloads. Two layers of verification: is the definition authentic, and are all its dependencies trusted."
 
 ### Scene 2B: Tool-Level Access Control (90–120 seconds)
 
-**This is where you show what Fiddler cannot do.**
+**This is the runtime enforcement demo.**
 
 **Show the ToolPolicy on screen:**
 
 ```yaml
-apiVersion: jozu.com/v1
+apiVersion: gerty.jozu.dev/v1
 kind: ToolPolicy
 metadata:
   name: gray-falcon-tool-control
 spec:
-  defaultAction: deny
+  match:
+    tool:
+      names:
+        - "Bash"
+  action: Enforce
   rules:
-    - name: allow-geospatial-read
-      match:
-        agents: ["imint-classifier"]
-        tools: ["geospatial-lookup"]
-      action: allow
-      conditions:
-        - cel: "request.args.classification_level in ['UNCLASSIFIED', 'SECRET']"
+    - name: block-git-push
+      assert: '!tool.arguments.command.contains("git push")'
+      message: "git push is not allowed — open a PR instead"
 
-    - name: allow-report-retrieval
-      match:
-        agents: ["imint-classifier"]
-        tools: ["report-retrieval"]
-      action: allow
-      conditions:
-        - cel: "request.args.date_range.days_back <= 90"
-          message: "Report retrieval limited to 90-day window"
-
-    - name: block-personnel-write
-      match:
-        agents: ["imint-classifier"]
-        tools: ["personnel-db"]
-        operations: ["write", "delete", "update"]
-      action: deny
-      conditions:
-        - cel: "true"
-          message: "Intel agent has read-only access to personnel data"
-
-    - name: personnel-read-requires-approval
-      match:
-        agents: ["imint-classifier"]
-        tools: ["personnel-db"]
-        operations: ["read"]
-      action: hil
-      conditions:
-        - cel: "true"
-          message: "Personnel query requires human approval"
+    - name: block-network-exfiltration
+      assert: >-
+        !tool.arguments.command.contains("curl") || tool.arguments.command.contains("curl").isInternalIP()
+      message: "External network access blocked"
 ```
 
-> "Default deny. The agent can query geospatial data and retrieve reports within classification and time-window constraints. It can read personnel data — but only with human-in-the-loop approval. It can never write to personnel. Every tool call is evaluated. Every evaluation is logged."
+> "Default deny. Every tool call the agent makes — every file read, every shell command, every MCP interaction — goes through the policy engine. The policy is written in CEL, evaluated locally, and enforced at the OS level. Not via prompts. The agent physically cannot bypass this."
 
-**Run three scenarios live:**
+**Run scenarios live — show the policy log output from Agent Guard:**
 
 **Scenario A — Allowed call:**
-Trigger a geospatial lookup at SECRET classification. Call succeeds.
+Agent reads a file in the workspace. Call succeeds.
 
-> "Geospatial lookup, within policy. Allowed. Logged."
+```text
+[policy] ALLOW  tool=Read    file_path=/workspace/data/report.json
+```
+
+> "File read, within policy. Allowed. Logged."
 
 **Scenario B — Blocked call:**
-Trigger a personnel database write attempt. Immediate denial.
+Agent attempts a git push. Immediate denial.
 
-> "Write to personnel database. Denied. The agent never gets to execute that call. Fail closed — not fail open with an alert after the fact."
+```text
+[policy] BLOCK  tool=Bash    command="git push origin main"
+         rule=block-git-push  message="git push is not allowed — open a PR instead"
+```
 
-**Scenario C — Human-in-the-loop:**
-Trigger a personnel database read. Show the HIL prompt requiring operator approval before execution.
-
-> "Personnel read requires human approval. The operator sees exactly what the agent wants to query, approves or denies, and the decision is a signed attestation in the audit log. This isn't an alert you might miss. It's a gate."
+> "Git push attempt. Denied. The agent never gets to execute that command. Fail closed — not fail open with an alert after the fact."
 
 ### Scene 2C: DDIL Resilience (30–60 seconds)
 
 State this as architectural fact. Don't attempt a live network kill at a booth — it's hard to show "no network" compellingly in that setting and fumbling the transition costs credibility.
 
-> "Everything I just showed you — the policy enforcement, the tool access control, the audit logging — works with zero connectivity to Hub. Policies are OCI artifacts, pulled and verified locally. The policy engine evaluates with no phone-home. Audit logs accumulate on-device in a tamper-evident, cryptographically chained format and sync when connectivity is restored."
-
-**Show one audit log entry to make it concrete:**
-
-```json
-{
-  "sequence": 47,
-  "timestamp": "2026-04-02T09:14:33Z",
-  "event": "tool_invocation_denied",
-  "agent": "imint-classifier",
-  "tool": "personnel-db",
-  "operation": "write",
-  "policy": "gray-falcon-tool-control",
-  "rule": "block-personnel-write",
-  "decision": "DENY",
-  "previous_hash": "sha256:a1b2c3d4e5f6...",
-  "entry_hash": "sha256:d4e5f6a1b2c3...",
-  "signature": "ECDSA-P256:...",
-  "connectivity": "disconnected"
-}
-```
-
-> "Each entry references the hash of the previous entry. If anyone tampers with the log — inserts, deletes, or modifies an entry — the chain breaks and it's detectable. This isn't a dashboard. This is forensic-grade evidence for your cATO process."
+> "Everything I just showed you — the policy enforcement, the tool access control, the audit logging — works with zero connectivity to Hub. The agent definition and all its modules are OCI artifacts, pulled and verified locally. Policies are pulled from the registry, cached, and auto-synced. The policy engine evaluates with no phone-home. The micro-VM is the ultimate air gap — nothing gets in or out that the policy doesn't allow."
+> "Agent Guard supports both micro-VM isolation for maximum containment, and OS-level kernel sandboxing for lighter deployments. Either way, enforcement is below the application layer — the agent can't bypass it even if it tries."
 
 **If they specifically ask you to prove disconnected operation,** and you're in a setting where you can do it cleanly (e.g., a private extended demo), use this:
 
@@ -403,16 +404,6 @@ Don't oversell. Land the plane.
 ---
 
 ## OBJECTION HANDLING
-
-### "How is this different from Fiddler?"
-
-Don't trash them. Acknowledge and differentiate architecturally.
-
-> "Fiddler does good work on runtime observability — monitoring model behavior, detecting drift, span-level tracing. The difference is architectural. They start at runtime. They can tell you how a model is behaving but can't verify the artifact in production is the one that was approved. We start earlier — supply chain verification before anything executes. Our runtime enforcement works disconnected. And we enforce per-tool access control — default deny — not just monitoring. Fiddler requires network connectivity to their platform for guardrail evaluation. Ask them what happens when the network goes down."
-
-### "We already have container scanning / Iron Bank."
-
-> "Iron Bank is excellent for container images. But there's no equivalent pipeline for AI models, datasets, agents, or MCP servers. A model file isn't a container — it has different threat vectors. Serialization attacks, data poisoning, adversarial susceptibility — these require model-specific scanners. We're the AI artifact layer that complements what Iron Bank does for containers. Same OCI standards, same philosophy."
 
 ### "Can this run at the edge / on a device?"
 
@@ -533,7 +524,6 @@ helm install jozu-hub jozu/hub \
 - **Don't demo Hub's HuggingFace import or model diffing** (unless asked — Scene 1D is the exception). Interesting features, not differentiators for this audience.
 - **Don't demo RICs.** Complex to explain in limited time, not the primary value prop for SOCOM.
 - **Don't show the MCP Registry API IDE integration.** Developer-facing feature, wrong audience.
-- **Don't compare to Fiddler by name unprompted.** Let the architecture speak. If they ask, use the objection handling above.
 - **Don't claim FedRAMP authorization.** Say "FedRAMP 20x in progress." This audience detects overstatement permanently.
 - **Don't claim paying customers.** Lead with technical architecture and differentiation, not installed base.
 - **Don't say "certified" or "compliant."** Say "supports" or "enables compliance with."

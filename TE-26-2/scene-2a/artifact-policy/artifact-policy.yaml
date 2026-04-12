@@ -1,0 +1,14 @@
+apiVersion: gerty.jozu.dev/v1
+kind: ArtifactPolicy
+metadata:
+  name: block-untrusted-registries
+spec:
+  match:
+    expression: |
+      !(artifact.registry == "registry.kind.cluster")
+  action: Enforce
+  rules:
+    - name: require-trusted-registry
+      assert: |
+        false
+      message: "Only registry.kind.cluster artifacts are trusted. Untrusted registry detected."

@@ -1,0 +1,9 @@
+manifestVersion: 1.0.0
+package:
+  name: gray-falcon-tool-control
+  version: 1.0.0
+  description: Tool access control policy for GRAY FALCON agents
+  authors: ["GRAY FALCON Intel Cell"]
+code:
+  - path: tool-control.yaml
+    description: ToolPolicy for Bash command restrictions

@@ -1,0 +1,23 @@
+apiVersion: agentguard.jozu.dev/v1
+kind: AgentDefinition
+metadata:
+  name: gray-falcon-imint-agent-untrusted
+spec:
+  framework: claude-code
+  modules:
+    - name: primary-llm
+      type: llm
+      source:
+        model: anthropic/claude-sonnet-4-20250514
+      auth:
+        key: env.ANTHROPIC_API_KEY
+
+    - name: tool-restrictions
+      type: policy
+      source:
+        modelkit: registry.kind.cluster/gray-falcon/tool-control-policy:v1
+
+    - name: untrusted-mcp
+      type: mcp
+      source:
+        modelkit: ghcr.io/random-org/untrusted-tool:latest

@@ -1,0 +1,14 @@
+apiVersion: gerty.jozu.dev/v1
+kind: ToolPolicy
+metadata:
+  name: gray-falcon-tool-control
+spec:
+  match:
+    tool:
+      names:
+        - "Bash"
+  action: Enforce
+  rules:
+    - name: block-git-push
+      assert: '!tool.arguments.command.contains("git push")'
+      message: "git push is not allowed — open a PR instead"

@@ -1,0 +1,9 @@
+manifestVersion: 1.0.0
+package:
+  name: gray-falcon-imint-agent
+  version: 1.0.0
+  description: IMINT classifier agent — Claude Code with policy enforcement
+  authors: ["GRAY FALCON Intel Cell"]
+code:
+  - path: agent-definition.yaml
+    description: Agent definition for IMINT classification agent

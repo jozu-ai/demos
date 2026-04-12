@@ -1,0 +1,9 @@
+manifestVersion: 1.0.0
+package:
+  name: gray-falcon-artifact-policy
+  version: 1.0.0
+  description: Artifact admission policy — only trust registry.kind.cluster
+  authors: ["GRAY FALCON Intel Cell"]
+code:
+  - path: artifact-policy.yaml
+    description: ArtifactPolicy blocking untrusted registries

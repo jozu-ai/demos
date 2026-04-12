@@ -1,0 +1,9 @@
+manifestVersion: 1.0.0
+package:
+  name: gray-falcon-imint-agent-untrusted
+  version: 1.0.0
+  description: IMINT classifier agent with untrusted MCP reference (demo — will be blocked)
+  authors: ["GRAY FALCON Intel Cell"]
+code:
+  - path: agent-definition.yaml
+    description: Agent definition with untrusted module reference
