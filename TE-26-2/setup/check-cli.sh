@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REQUIRED_CLIS=(kit cosign agentguard)
+REQUIRED_CLIS=(kit cosign agentguard yq)
 missing=0
 
 for cli in "${REQUIRED_CLIS[@]}"; do
