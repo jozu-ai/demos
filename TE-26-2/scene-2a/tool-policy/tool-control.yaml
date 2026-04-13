@@ -9,6 +9,10 @@ spec:
         - "Bash"
   action: Enforce
   rules:
-    - name: block-git-push
-      assert: '!tool.arguments.command.contains("git push")'
-      message: "git push is not allowed — open a PR instead"
+    - name: block-untrusted-installs
+      assert: >-
+        !(tool.arguments.command.contains("pip install")
+        || tool.arguments.command.contains("npm install")
+        || tool.arguments.command.contains("apt install")
+        || tool.arguments.command.contains("apt-get install"))
+      message: "Package installation from external sources is not allowed in this environment"

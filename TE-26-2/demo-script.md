@@ -327,17 +327,16 @@ spec:
         - "Bash"
   action: Enforce
   rules:
-    - name: block-git-push
-      assert: '!tool.arguments.command.contains("git push")'
-      message: "git push is not allowed — open a PR instead"
-
-    - name: block-network-exfiltration
+    - name: block-untrusted-installs
       assert: >-
-        !tool.arguments.command.contains("curl") || tool.arguments.command.contains("curl").isInternalIP()
-      message: "External network access blocked"
+        !(tool.arguments.command.contains("pip install")
+        || tool.arguments.command.contains("npm install")
+        || tool.arguments.command.contains("apt install")
+        || tool.arguments.command.contains("apt-get install"))
+      message: "Package installation from external sources is not allowed in this environment"
 ```
 
-> "Default deny. Every tool call the agent makes — every file read, every shell command, every MCP interaction — goes through the policy engine. The policy is written in CEL, evaluated locally, and enforced at the OS level. Not via prompts. The agent physically cannot bypass this."
+> "Every tool call the agent makes goes through the policy engine. This policy blocks any attempt to install packages from external sources — pip, npm, apt. In a denied environment, you don't want an agent pulling untrusted code from the internet. The policy is written in CEL, evaluated locally, and enforced at the OS level. Not via prompts. The agent physically cannot bypass this."
 
 **Run scenarios live — show the policy log output from Agent Guard:**
 
@@ -351,14 +350,14 @@ Agent reads a file in the workspace. Call succeeds.
 > "File read, within policy. Allowed. Logged."
 
 **Scenario B — Blocked call:**
-Agent attempts a git push. Immediate denial.
+Agent attempts to install a package. Immediate denial.
 
 ```text
-[policy] BLOCK  tool=Bash    command="git push origin main"
-         rule=block-git-push  message="git push is not allowed — open a PR instead"
+[policy] BLOCK  tool=Bash    command="pip install requests"
+         rule=block-untrusted-installs  message="Package installation from external sources is not allowed in this environment"
 ```
 
-> "Git push attempt. Denied. The agent never gets to execute that command. Fail closed — not fail open with an alert after the fact."
+> "The agent tried to pull a package from the internet. Denied. In a disconnected environment, every dependency should already be in the approved artifact. The agent doesn't get to introduce new code from external sources. Fail closed."
 
 ### Scene 2C: DDIL Resilience (30–60 seconds)
 
