@@ -36,10 +36,8 @@ data:
         ttl 30
       }
       prometheus :9153
-      template IN A {
-        match ${CLUSTER_URL}
+      template IN A ${CLUSTER_URL} {
         answer "{{ .Name }} 60 IN A ${IP_ADDR}"
-        fallthrough
       }
       forward . /etc/resolv.conf {
         max_concurrent 1000
@@ -52,6 +50,14 @@ data:
 EOF
 
 kubectl delete pod -l k8s-app=kube-dns -n kube-system
+echo "Waiting for CoreDNS to be ready..."
+kubectl rollout status deploy/coredns -n kube-system --timeout=30s
+
+echo "Restarting Hub pods to pick up new DNS..."
+kubectl rollout restart deploy/jozu-hub-api -n jozu-hub
+kubectl rollout restart deploy/jozu-hub-workers -n jozu-hub
+kubectl rollout status deploy/jozu-hub-api -n jozu-hub --timeout=120s
+kubectl rollout status deploy/jozu-hub-workers -n jozu-hub --timeout=120s
 
 echo "Updating /etc/hosts..."
 "${SCRIPT_DIR}/jozu-hub-product/tools/local-dev/setup-local-dns.sh" update

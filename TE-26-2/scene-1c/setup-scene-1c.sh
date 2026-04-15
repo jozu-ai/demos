@@ -14,6 +14,9 @@ for cmd in kit python3; do
   fi
 done
 
+# Ensure logged in
+kit login registry.kind.cluster --tls-verify=false -u gray-falcon -p test 2>/dev/null || true
+
 # Generate the malicious pickle model file
 echo "Generating malicious model file..."
 python3 "${PROJECT_DIR}/generate-malicious-model.py"
