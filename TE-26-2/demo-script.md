@@ -228,15 +228,10 @@ kind: AgentDefinition
 metadata:
   name: gray-falcon-imint-agent
 spec:
-  framework: claude-code
+  # No spec.framework — the coding agent is chosen at launch time
+  # (agentguard run <agent>), so the same definition runs under
+  # claude-code, codex, or gemini.
   modules:
-    - name: primary-llm
-      type: llm
-      source:
-        model: anthropic/claude-sonnet-4-20250514
-      auth:
-        key: env.ANTHROPIC_API_KEY
-
     - name: geospatial-lookup
       type: mcp
       source:
@@ -253,12 +248,14 @@ spec:
         modelkit: registry.kind.cluster/gray-falcon/tool-control-policy:v1
 ```
 
-> "This is an Agent Definition. It declares everything the agent needs to run: which LLM, which MCP tool servers, and which policies to enforce. It's packaged as a ModelKit — same OCI artifact, same registry, same supply chain controls we just showed you."
+> "This is an Agent Definition. It declares what the agent runs with: which MCP tool servers and which policies to enforce. It's packaged as a ModelKit — same OCI artifact, same registry, same supply chain controls we just showed you. Notice it doesn't pin a specific coding agent — the same signed definition can run under Claude Code, Codex, or Gemini. You choose the agent at launch."
+
+> *Demo note: the agent is selected with the `AGENT` env var (default `claude-code`) before running the setup and scene scripts — `AGENT=codex`, `AGENT=gemini`. The commands below show `claude-code`.*
 
 **Action — launch the signed agent with signature verification:**
 
 ```bash
-agentguard run claude --agent-ref registry.kind.cluster/gray-falcon/imint-agent:v1 --pub-key cosign.pub -w /workspace
+agentguard run claude-code --agent-ref registry.kind.cluster/gray-falcon/imint-agent:v1 --pub-key cosign.pub -w /workspace
 ```
 
 **Show the startup log — signature verification and artifact admission happen before the VM boots:**
@@ -278,7 +275,7 @@ Agent ready
 **Show what happens with an UNSIGNED agent definition:**
 
 ```bash
-agentguard run claude --agent-ref registry.kind.cluster/gray-falcon/imint-agent-unsigned:v1 --pub-key cosign.pub -w /workspace
+agentguard run claude-code --agent-ref registry.kind.cluster/gray-falcon/imint-agent-unsigned:v1 --pub-key cosign.pub -w /workspace
 ```
 
 ```text
@@ -294,7 +291,7 @@ Agent blocked — signature verification failed
 Show the untrusted agent definition — it references `ghcr.io/random-org/untrusted-tool:latest`:
 
 ```bash
-agentguard run claude --agent-ref registry.kind.cluster/gray-falcon/imint-agent-untrusted:v1 --pub-key cosign.pub -w /workspace
+agentguard run claude-code --agent-ref registry.kind.cluster/gray-falcon/imint-agent-untrusted:v1 --pub-key cosign.pub -w /workspace
 ```
 
 ```text

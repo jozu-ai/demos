@@ -3,15 +3,10 @@ kind: AgentDefinition
 metadata:
   name: gray-falcon-imint-agent
 spec:
-  framework: claude-code
+  # No spec.framework — the coding agent is chosen at launch time
+  # (`agentguard run <agent>`), so this one definition runs under
+  # claude-code, codex, or gemini. See scene-2a/agent-config.sh.
   modules:
-    - name: primary-llm
-      type: llm
-      source:
-        model: anthropic/claude-sonnet-4-20250514
-      auth:
-        key: env.ANTHROPIC_API_KEY
-
     - name: tool-restrictions
       type: policy
       source:
