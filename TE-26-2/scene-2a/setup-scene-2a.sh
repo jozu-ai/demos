@@ -4,7 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REGISTRY="registry.kind.cluster/gray-falcon"
 
-echo "=== Scene 2A Setup ==="
+# Resolve the selected coding agent (AGENT env var, default claude-code).
+source "${SCRIPT_DIR}/agent-config.sh"
+
+echo "=== Scene 2A Setup (agent: ${AGENT}) ==="
 
 COSIGN_KEY="${SCRIPT_DIR}/cosign.key"
 COSIGN_PUB="${SCRIPT_DIR}/cosign.pub"
