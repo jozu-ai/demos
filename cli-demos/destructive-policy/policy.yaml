@@ -1,0 +1,160 @@
+# Refuses destructive tool calls.
+#
+# Two ToolPolicies, both Enforce, so a match denies the call and returns the
+# rule's message to the agent. Nothing here elicits: the point is refusal, not
+# confirmation. For the confirm-instead-of-refuse variant of the same ground,
+# see agentguard's docs/demos/vm-policy-tiers/standard/destructive-elicitations.yaml.
+#
+# Conventions these follow, from agentguard's docs/demos/reference-policy/README.md:
+#
+#   1. Every argument access is guarded with !("arg" in tool.arguments) || …
+#      Reading an argument the tool did not send is a CEL error, which denies,
+#      so an unguarded rule refuses unrelated tools rather than ignoring them.
+#   2. No rule references request.*. The agent hook posts only the tool call,
+#      so any rule touching request.* would deny everything it matches.
+#   3. assert holds what is ALLOWED. The call is refused when it evaluates
+#      false, which is why each rule reads as a chain of negations.
+#
+# Regexes are RE2, which has no lookahead. Exemptions are therefore written as
+# extra clauses rather than as (?!…).
+
+# ---------------------------------------------------------------------
+# Shell commands that destroy data, storage, or history.
+#
+# Matched on the shell tools of the four supported frameworks plus the
+# conventional MCP shell server names. A framework whose shell tool is named
+# something else is not covered; add the name to match.tool.names.
+# ---------------------------------------------------------------------
+apiVersion: gerty.jozu.dev/v1
+kind: ToolPolicy
+metadata:
+  name: 01-destructive-shell-commands
+  labels:
+    layer: runtime-tool
+    control: data-protection
+spec:
+  match:
+    tool:
+      names:
+        - "Bash"
+        - "run_shell_command"
+        - "run_command"
+        - "execute_command"
+        - "exec"
+        - "shell"
+  action: Enforce
+  rules:
+    # WHAT:    Recursive forced deletion.
+    # REFUSES: rm -rf, rm -rfv, rm -Rf, rm -fR, rm --recursive --force,
+    #          rm -i -rf (flags need not be adjacent or in order).
+    # ALLOWS:  rm file, rm -r dir, rm -f file. Each is missing one half of
+    #          the combination, and neither half alone is unrecoverable.
+    - name: no-recursive-forced-delete
+      assert: |
+        !("command" in tool.arguments) ||
+        !tool.arguments.command.matches("(^|[^\\w-])rm([\\s;|&]|$)") ||
+        !(tool.arguments.command.matches("(^|\\s)(-\\w*[rR]\\w*|--recursive)([\\s=]|$)") &&
+          tool.arguments.command.matches("(^|\\s)(-\\w*[fF]\\w*|--force)([\\s=]|$)"))
+      message: "Recursive forced deletion is refused. Delete a named path instead, or narrow the command to one directory."
+
+    # WHAT:    Deletion aimed at the filesystem root.
+    # REFUSES: rm -rf /, rm -r --no-preserve-root /, and any command carrying
+    #          --no-preserve-root at all, which exists only to defeat the
+    #          guard rm ships with.
+    # ALLOWS:  rm -r /srv/cache and any other path below the root.
+    - name: no-delete-at-filesystem-root
+      assert: |
+        !("command" in tool.arguments) ||
+        (!tool.arguments.command.contains("--no-preserve-root") &&
+         !tool.arguments.command.matches("(^|[^\\w-])rm\\s+(-\\S+\\s+)*/+\\s*($|[;|&])"))
+      message: "Deleting the filesystem root is refused."
+
+    # WHAT:    Writes that bypass the filesystem, and secure erase.
+    # REFUSES: mkfs, mkfs.ext4, wipefs, blkdiscard, shred, fdisk, parted,
+    #          sgdisk, and dd writing to a device (of=/dev/…).
+    # ALLOWS:  dd between regular files, which is a copy, not a wipe.
+    - name: no-raw-device-writes
+      assert: |
+        !("command" in tool.arguments) ||
+        (!tool.arguments.command.matches("(^|[^\\w-])(mkfs([.]\\w+)?|wipefs|blkdiscard|shred|fdisk|parted|sgdisk)([\\s]|$)") &&
+         !tool.arguments.command.matches("(^|[^\\w-])dd\\s+[^;|&]*of=/dev/"))
+      message: "Writing directly to a block device or securely erasing one is refused."
+
+    # WHAT:    SQL statements that drop or empty a relation.
+    # KNOWN:   Matches the statement wherever it appears on the line, so it
+    #          covers psql -c, mysql -e, and a heredoc alike. It does not
+    #          parse SQL, so a statement built from shell variables is missed.
+    - name: no-sql-drop-or-truncate
+      assert: |
+        !("command" in tool.arguments) ||
+        (!tool.arguments.command.matches("(?i)\\bdrop\\s+(table|database|schema)\\b") &&
+         !tool.arguments.command.matches("(?i)\\btruncate\\s+table\\b"))
+      message: "Dropping or truncating a database relation is refused."
+
+    # WHAT:    Git operations that discard committed or uncommitted work.
+    # REFUSES: git push --force, git push -f, git reset --hard,
+    #          git clean -fd and -fdx, git branch -D.
+    # ALLOWS:  git push --force-with-lease, which refuses to overwrite work
+    #          the local clone has not seen, so it cannot silently discard a
+    #          collaborator's commits.
+    - name: no-git-history-destruction
+      assert: |
+        !("command" in tool.arguments) ||
+        (!tool.arguments.command.matches("(^|[^\\w-])git\\s[^;|&]*\\bpush\\b[^;|&]*(--force([^-]|$)|(^|\\s)-f(\\s|$))") &&
+         !tool.arguments.command.matches("(^|[^\\w-])git\\s[^;|&]*\\breset\\b[^;|&]*--hard") &&
+         !tool.arguments.command.matches("(^|[^\\w-])git\\s[^;|&]*\\bclean\\b[^;|&]*\\s-\\w*f") &&
+         !tool.arguments.command.matches("(^|[^\\w-])git\\s[^;|&]*\\bbranch\\b[^;|&]*\\s-D(\\s|$)"))
+      message: "Git operations that discard history are refused. Use --force-with-lease to push, or a revert commit to undo."
+
+    # WHAT:    Infrastructure teardown.
+    # REFUSES: terraform destroy, kubectl delete, aws s3 rb/rm with --force
+    #          or --recursive.
+    # KNOWN:   Covers the three tools most likely to be reachable from a
+    #          developer sandbox. Add your own provider CLI if it is on PATH.
+    - name: no-infrastructure-teardown
+      assert: |
+        !("command" in tool.arguments) ||
+        (!tool.arguments.command.matches("(^|[^\\w-])terraform\\s[^;|&]*\\bdestroy\\b") &&
+         !tool.arguments.command.matches("(^|[^\\w-])kubectl\\s[^;|&]*\\bdelete\\b") &&
+         !tool.arguments.command.matches("(^|[^\\w-])aws\\s[^;|&]*\\bs3\\b[^;|&]*\\b(rb|rm)\\b[^;|&]*--(force|recursive)"))
+      message: "Tearing down infrastructure is refused."
+
+---
+# ---------------------------------------------------------------------
+# Tools whose whole purpose is deletion.
+#
+# These are refused by name rather than by argument, because there is no
+# non-destructive way to call them. The list covers the deletion tools of
+# conventional MCP filesystem servers; server identity is the declared module
+# name from the Agent Definition, so add spec.match.tool.servers to scope this
+# to one module instead of every server that happens to use these names.
+#
+# To allow deletion inside the workspace and refuse it elsewhere, replace the
+# "false" assert with a path fence, guarded the same way as the rules above:
+#
+#   assert: |
+#     !("path" in tool.arguments) ||
+#     tool.arguments.path.startsWith("/workspace/")
+# ---------------------------------------------------------------------
+apiVersion: gerty.jozu.dev/v1
+kind: ToolPolicy
+metadata:
+  name: 02-destructive-file-tools
+  labels:
+    layer: runtime-tool
+    control: data-protection
+spec:
+  match:
+    tool:
+      names:
+        - "delete_file"
+        - "delete_directory"
+        - "remove_file"
+        - "remove_directory"
+        - "unlink"
+        - "rmdir"
+  action: Enforce
+  rules:
+    - name: no-deletion-tools
+      assert: "false"
+      message: "This tool only deletes, so every call to it is refused. Ask the operator to remove the path, or scope this policy to a directory."

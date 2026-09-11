@@ -1,0 +1,9 @@
+manifestVersion: 1.0.0
+package:
+  name: destructive-operations-policy
+  version: 1.0.0
+  description: Refuses destructive shell commands and deletion-only MCP tools
+  authors: [jozu-ai]
+code:
+  - path: policy.yaml
+    description: ToolPolicy refusing recursive forced deletes, raw device writes, SQL drops, git history rewrites, infrastructure teardown, and deletion-only MCP tools
