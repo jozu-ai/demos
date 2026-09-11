@@ -7,9 +7,10 @@ Other demos are available as MP4 files.
 
 ## KitOps Demos
 
-There are two demos for KitOps:
+There are three demos for KitOps:
 1. **Pack and push** (`/cli-demos/pack-and-push`): shows packing the wine predictor ML model, training data, MLflow experiments, Jupyter notebook, and docs into a ModelKit, then pushing it to the local and a remote registry. It is good for showing the all-in-one packaging of ModelKits.
 2. **Pull and dev** (`/cli-demos/pull-and-dev`): shows pulling a fine-tuned LLM and both full and filtered unpacking.
+3. **MCPB packaging** (`/cli-demos/mcpb-pack`): shows an MCP server packaged as a ModelKit carrying one MCPB bundle, so an agent definition can pull it as a `type: mcp` module. Unlike the other two it builds its own artifact first, vendoring the server's dependency closure for the guest. Needs Kit v1.15.0 or later to unpack the result.
 
 ### Running demos interactively
 
