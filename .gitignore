@@ -166,3 +166,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 TE-26-2/.claude/settings.local.json
+
+# Upstream modelcontextprotocol/servers checkout, cloned on demand by the demo
+cli-demos/mcpb-pack/servers/
