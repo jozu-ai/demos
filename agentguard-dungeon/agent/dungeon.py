@@ -2,7 +2,7 @@
 
 This is the whole application a custom runtime session runs. It reads a line
 from the player, asks a model what to do, calls one tool, and narrates what the
-tool returned. It has three connections to the outside world and no others:
+tool returned. Its connections to the outside world are:
 
   - the gateway's OpenAI-compatible route, on the guest loopback, addressed by
     AGENTGUARD_OPENAI_BASE_URL and the session token in
@@ -11,6 +11,10 @@ tool returned. It has three connections to the outside world and no others:
   - the gateway's aggregated MCP endpoint, AGENTGUARD_MCP_GATEWAY_URL, which is
     where every tool in the game comes from.
   - standard input and standard output.
+  - a plain TCP listener on the guest's loopback, carrying the gateway's own
+    requests the last hop to the model on the operator's machine. It is a shim
+    around a gap in the gateway's configuration rather than part of the design,
+    and the comment on MODEL_HOST below says why it has to exist.
 
 It names its model by module name, not by provider model name. Which upstream
 that reaches is the agent definition's business, not this program's.
@@ -190,7 +194,7 @@ def parse_maybe_sse(text):
 
 
 class Gateway:
-    """The agent's entire outside world."""
+    """Everything the agent is able to ask for: one model and one tool surface."""
 
     def __init__(self):
         self.mcp_session = None
