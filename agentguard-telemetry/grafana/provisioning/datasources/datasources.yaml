@@ -1,0 +1,55 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: agentguard-prom
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 15s
+      # Exemplars are the metrics half of the same idea: the gateway records
+      # its duration histograms inside the span that produced them, so each
+      # bucket carries the trace id of one real call. Grafana draws those as
+      # dots on the latency panels; this is what makes a dot clickable through
+      # to the trace. The label is trace_id because that is what Prometheus's
+      # OTLP ingest names it.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: agentguard-tempo
+
+  - name: Tempo
+    type: tempo
+    uid: agentguard-tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      # Click a span, land on the logs for that same trace. AgentGuard stamps
+      # the trace id onto audit log records, so a denial in the trace and the
+      # audit evidence for it are one click apart — which is the whole point
+      # of emitting audit events as OTLP logs.
+      tracesToLogsV2:
+        datasourceUid: agentguard-loki
+        spanStartTimeShift: -5m
+        spanEndTimeShift: 5m
+        filterByTraceID: true
+        filterBySpanID: false
+      nodeGraph:
+        enabled: true
+
+  - name: Loki
+    type: loki
+    uid: agentguard-loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      # And the reverse: from an audit record back to the request that caused
+      # it. The trace id rides OTLP log records natively, so Loki stores it as
+      # structured metadata rather than needing a regex over the line.
+      derivedFields:
+        - name: TraceID
+          datasourceUid: agentguard-tempo
+          matcherType: label
+          matcherRegex: trace_id
+          url: "${__value.raw}"

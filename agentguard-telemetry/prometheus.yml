@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+
+# Metrics arrive by OTLP write from the collector, not by scraping, so there is
+# nothing to configure here beyond Prometheus's own self-scrape.
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+# Resource attributes land on a separate target_info metric by default, which
+# makes "filter by environment" a join. Promote the few AgentGuard identity
+# attributes to real series labels instead. service.instance.id is the run id
+# (one VM boot), so this also gives per-run filtering without promoting a
+# second high-cardinality key.
+otlp:
+  promote_resource_attributes:
+    - service.name
+    - service.instance.id
+    - agentguard.environment
+    - agentguard.version

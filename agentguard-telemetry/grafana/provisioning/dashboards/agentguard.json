@@ -1,0 +1,837 @@
+{
+ "title": "AgentGuard \u2014 Agent Governance",
+ "uid": "agentguard-governance",
+ "tags": [
+  "agentguard",
+  "demo"
+ ],
+ "timezone": "browser",
+ "editable": true,
+ "schemaVersion": 39,
+ "refresh": "10s",
+ "time": {
+  "from": "now-30m",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "environment",
+    "label": "Environment",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "agentguard-prom"
+    },
+    "query": "label_values(gerty_policy_evaluation_result_total, agentguard_environment)",
+    "includeAll": true,
+    "multi": true,
+    "current": {
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ],
+     "selected": true
+    },
+    "refresh": 1,
+    "allValue": ".*"
+   },
+   {
+    "name": "run",
+    "label": "Run",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "agentguard-prom"
+    },
+    "query": "label_values(gerty_policy_evaluation_result_total{agentguard_environment=~\"$environment\"}, service_instance_id)",
+    "includeAll": true,
+    "multi": true,
+    "current": {
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ],
+     "selected": true
+    },
+    "refresh": 1,
+    "allValue": ".*"
+   }
+  ]
+ },
+ "panels": [
+  {
+   "type": "row",
+   "title": "Governance \u2014 what policy decided",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 0
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Policy evaluations",
+   "description": "Every policy evaluation the gateway ran, from gerty.policy.evaluation.result. Two sources feed it: guardrail evaluations, one on the way in and one on the way out of every LLM request, and one tool evaluation per MCP tool call. Split them with gerty_policy_kind.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 0,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(increase(gerty_policy_evaluation_result_total{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__range]))",
+     "instant": true
+    }
+   ]
+  },
+  {
+   "type": "stat",
+   "title": "Denied",
+   "description": "Evaluations whose outcome was denied, across both kinds: a guardrail that refused a prompt or a response, and a ToolPolicy that refused an MCP tool call. This is the number that says the sandbox is doing something.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 4,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(increase(gerty_policy_evaluation_result_total{gerty_policy_outcome=\"denied\", agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__range])) or vector(0)",
+     "instant": true
+    }
+   ]
+  },
+  {
+   "type": "stat",
+   "title": "Policy overhead (p95)",
+   "description": "How long a single guardrail evaluation takes. This is the cost of governance, and the answer to 'does this slow my agent down'.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 8,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "decimals": 4
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(gerty_policy_evaluation_duration_seconds_bucket{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))",
+     "instant": true
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "stat",
+   "title": "Tokens in / out",
+   "description": "Split because the ratio is the story: agents resend the whole conversation every turn, so input dwarfs output. Input INCLUDES cache reads (folded in so the number means the same thing across providers), and cache reads price at roughly a tenth of fresh input \u2014 so read this as volume, not spend. The cached vs uncached split is on the spans, not here.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 12,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(increase(gen_ai_client_token_usage_sum{gen_ai_token_type=\"input\", agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__range])) or vector(0)",
+     "legendFormat": "input",
+     "instant": true
+    },
+    {
+     "refId": "B",
+     "expr": "sum(increase(gen_ai_client_token_usage_sum{gen_ai_token_type=\"output\", agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__range])) or vector(0)",
+     "legendFormat": "output",
+     "instant": true
+    }
+   ],
+   "options": {
+    "textMode": "value_and_name",
+    "colorMode": "none",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Model requests",
+   "description": "Proxied model API calls, from gen_ai.client.operation.duration.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 16,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(increase(gen_ai_client_operation_duration_seconds_count{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__range])) or vector(0)",
+     "instant": true
+    }
+   ]
+  },
+  {
+   "type": "stat",
+   "title": "Active runs",
+   "description": "Distinct VM boots reporting. service.instance.id is the run id, so two agents running in parallel count as two.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 20,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "count(count by (service_instance_id) (gerty_policy_evaluation_result_total{agentguard_environment=~\"$environment\"})) or vector(0)",
+     "instant": true
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Policy decisions over time",
+   "description": "Allowed, denied and error outcomes, guardrail and MCP tool evaluations together. A deny appearing here is the demo moment: the agent asked for something the policy refused. The MCP row below shows which server and tool it was.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 6
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "bars",
+      "stacking": {
+       "mode": "normal"
+      },
+      "fillOpacity": 70,
+      "lineWidth": 0
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "denied"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "red"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "allowed"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "green"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "error"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "orange"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (gerty_policy_outcome) (rate(gerty_policy_evaluation_result_total{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval]))",
+     "legendFormat": "{{gerty_policy_outcome}}"
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "logs",
+   "title": "Audit trail \u2014 every decision, with its violations",
+   "description": "The gerty audit event as an OTLP log record. No parser in the query: the record's body is the outcome word, and every field (audit id, policy, direction, trace id) arrives as an attribute Loki keeps as structured metadata \u2014 queryable directly, and visible when you expand a line. Follow TraceID to reach the request span that produced the decision.",
+   "datasource": {
+    "type": "loki",
+    "uid": "agentguard-loki"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 6
+   },
+   "options": {
+    "showTime": true,
+    "wrapLogMessage": true,
+    "sortOrder": "Descending",
+    "enableLogDetails": true
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "{service_name=\"agentguard-gateway\"} | line_format \"{{.gerty_policy_outcome}}  {{.gerty_guardrail_direction}}  {{.gerty_guardrail_name}}  {{.gerty_policy_action}}\""
+    }
+   ]
+  },
+  {
+   "type": "row",
+   "title": "Latency \u2014 what governance costs",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 14
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Request duration by response type",
+   "description": "Split because the two populations mean different things. A BUFFERED response is a complete round trip through the gateway. A STREAMED one runs until the model stops generating, so its duration is dominated by generation time \u2014 the agent is being written to for most of it. Neither number is gateway overhead; that is the panel to the right.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 15
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10,
+      "lineWidth": 2
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_duration_seconds_bucket{gerty_response_streaming=\"true\", agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))",
+     "legendFormat": "streamed (model generating)"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_duration_seconds_bucket{gerty_response_streaming=\"false\", agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))",
+     "legendFormat": "buffered (full round trip)"
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "timeseries",
+   "title": "Governance overhead",
+   "description": "What enforcement actually costs: one policy evaluation, at p50/p95/p99, guardrail and tool alike. This is the number to quote - it is the time the gateway adds to a request in order to police it. Compare it to the request durations on the left, which are dominated by the model's own generation time.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 15
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 20,
+      "lineWidth": 2
+     },
+     "decimals": 4
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.50, sum by (le) (rate(gerty_policy_evaluation_duration_seconds_bucket{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))",
+     "legendFormat": "p50"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(gerty_policy_evaluation_duration_seconds_bucket{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))",
+     "legendFormat": "p95"
+    },
+    {
+     "refId": "C",
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(gerty_policy_evaluation_duration_seconds_bucket{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))",
+     "legendFormat": "p99"
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "row",
+   "title": "Usage \u2014 what the agent spent",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 23
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Tokens by model",
+   "description": "From the provider's own usage numbers, split by model and direction. Input includes cache reads, which is why it towers over output on agent traffic. Attribution is per model rather than per host, which is what makes cost allocation possible.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 24
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "bars",
+      "stacking": {
+       "mode": "normal"
+      },
+      "fillOpacity": 70,
+      "lineWidth": 0
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (gen_ai_request_model, gen_ai_token_type) (rate(gen_ai_client_token_usage_sum{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval]))",
+     "legendFormat": "{{gen_ai_request_model}} {{gen_ai_token_type}}"
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "timeseries",
+   "title": "Policy evaluation latency by direction",
+   "description": "Input evaluation runs before the request leaves; output evaluation runs on the response. Sub-millisecond here is the claim that enforcement is not the bottleneck. Scoped to guardrail evaluations on purpose: a tool evaluation has no direction, and unscoped it would draw as a nameless fourth series.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 24
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10,
+      "lineWidth": 2
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.95, sum by (le, gerty_guardrail_direction) (rate(gerty_policy_evaluation_duration_seconds_bucket{gerty_policy_kind=\"guardrail\", agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))",
+     "legendFormat": "{{gerty_guardrail_direction}} p95"
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "row",
+   "title": "MCP - what the agent's tools did",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 32
+   },
+   "panels": []
+  },
+  {
+   "type": "stat",
+   "title": "Tool calls",
+   "description": "MCP tool calls the gateway routed, from the count of mcp.server.operation.duration. Every call is here whatever policy decided, because the span that feeds it is opened before evaluation and closed after it. The counter is read directly rather than through increase(): it is scoped per run and starts at zero with the gateway, and tool calls come in bursts that a rate over the dashboard range would flatten to nothing.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 0,
+    "y": 33
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "instant": true,
+     "expr": "sum(mcp_server_operation_duration_seconds_count{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}) or vector(0)"
+    }
+   ]
+  },
+  {
+   "type": "stat",
+   "title": "Tool calls denied",
+   "description": "Calls the gateway refused before they reached their server, counted by error.type=policy_denied. A denied call never leaves the sandbox, so it has no upstream leg on the panel below \u2014 the two duration series there differ by exactly these calls.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 4,
+    "y": 33
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "instant": true,
+     "expr": "sum(mcp_server_operation_duration_seconds_count{error_type=\"policy_denied\", agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}) or vector(0)"
+    }
+   ]
+  },
+  {
+   "type": "stat",
+   "title": "Servers reached",
+   "description": "Distinct MCP servers the agent called, named as the agent definition declares them. This is the identity policy matches on and audit rows carry, not the sanitized client name the gateway composes tool names from.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 4,
+    "x": 8,
+    "y": 33
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "text"
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "instant": true,
+     "expr": "count(count by (gerty_tool_server) (mcp_server_operation_duration_seconds_count{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"})) or vector(0)"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Tool calls by server and tool",
+   "description": "Which servers the agent is actually using, and which tool on each. Cardinality is bounded by the agent definition, so this stays readable.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 5,
+    "w": 12,
+    "x": 12,
+    "y": 33
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "bars",
+      "stacking": {
+       "mode": "normal"
+      },
+      "fillOpacity": 70,
+      "lineWidth": 0
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (gerty_tool_server, gen_ai_tool_name) (rate(mcp_server_operation_duration_seconds_count{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval]))",
+     "legendFormat": "{{gerty_tool_server}} / {{gen_ai_tool_name}}"
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "timeseries",
+   "title": "Tool call duration - gateway against upstream",
+   "description": "Two measurements of the same call. The gateway line is the whole call as the agent experienced it, policy evaluation included; the upstream line is the leg the MCP client spent talking to the server. Unlike the streamed-LLM panel above, the gap here really is the gateway's cost: both measure a complete round trip. Read it as a shape rather than subtracting the two, since a difference of quantiles is not the quantile of the difference.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "agentguard-prom"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 38
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "legendFormat": "gateway p95",
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(mcp_server_operation_duration_seconds_bucket{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))"
+    },
+    {
+     "refId": "B",
+     "legendFormat": "upstream p95",
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(mcp_client_operation_duration_seconds_bucket{agentguard_environment=~\"$environment\", service_instance_id=~\"$run\"}[$__rate_interval])))"
+    }
+   ],
+   "interval": "4m"
+  },
+  {
+   "type": "logs",
+   "title": "MCP audit trail - every tool call, with its decision",
+   "description": "The same gerty audit stream as the governance row, narrowed to records that name a tool server. Each carries the declared server, the bare tool name and the decision as structured metadata. Follow TraceID to reach the call's server span, and from there its policy evaluation and, when the call was allowed, its upstream leg.",
+   "datasource": {
+    "type": "loki",
+    "uid": "agentguard-loki"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 38
+   },
+   "options": {
+    "showTime": true,
+    "wrapLogMessage": true,
+    "sortOrder": "Descending",
+    "enableLogDetails": true
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "{service_name=\"agentguard-gateway\"} | gerty_tool_server != \"\" | line_format \"{{.gerty_policy_outcome}}  {{.gerty_tool_server}} / {{.gerty_tool_name}}  {{.gerty_policy_action}}\""
+    }
+   ]
+  },
+  {
+   "type": "row",
+   "title": "Traces - the calls behind the numbers",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 46
+   },
+   "panels": []
+  },
+  {
+   "type": "table",
+   "title": "Tool calls, as traces",
+   "description": "Every MCP tool call the gateway routed, newest first, as a trace rather than a number. Click one to open it: the server span, the policy evaluation under it, and - when the call was allowed - the upstream leg. From any span, the Tempo datasource links on to that call's audit records in Loki.",
+   "datasource": {
+    "type": "tempo",
+    "uid": "agentguard-tempo"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 47
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "tempo",
+      "uid": "agentguard-tempo"
+     },
+     "queryType": "traceql",
+     "query": "{resource.service.name=\"agentguard-gateway\" && name=~\"tools/call.*\"}",
+     "limit": 20,
+     "tableType": "traces"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "title": "Refused calls",
+   "description": "Traces the gateway short-circuited, selected on the error.type it stamps when a ToolPolicy refuses a call. This is the demo list: every row is a tool call that never reached its server, and opening one shows the refusal as a missing upstream leg.",
+   "datasource": {
+    "type": "tempo",
+    "uid": "agentguard-tempo"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 47
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "tempo",
+      "uid": "agentguard-tempo"
+     },
+     "queryType": "traceql",
+     "query": "{span.error.type=\"policy_denied\"}",
+     "limit": 20,
+     "tableType": "traces"
+    }
+   ]
+  }
+ ]
+}

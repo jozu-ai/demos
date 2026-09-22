@@ -1,0 +1,59 @@
+# Receives everything the AgentGuard relay forwards and fans it out per signal.
+#
+# The relay could target the three backends directly using the per-signal
+# variables (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT and friends), which AgentGuard
+# supports. A collector is used here instead because it gives the demo one
+# address to configure and one place to see whether data arrived.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 2s
+
+  # No loki.resource.labels hint here. That convention belonged to the old,
+  # deprecated loki exporter; Loki 3.x ingests OTLP natively and decides labels
+  # itself, keeping everything else as structured metadata. Setting it only
+  # added a literal loki_resource_labels field to every record.
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Loki 3.x ingests OTLP natively; the old loki exporter is deprecated.
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+  otlphttp/prometheus:
+    endpoint: http://prometheus:9090/api/v1/otlp
+    tls:
+      insecure: true
+
+  # Uncomment to see on the console what actually arrived — the fastest way to
+  # tell "the gateway sent nothing" apart from "the dashboard query is wrong".
+  # debug:
+  #   verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]
