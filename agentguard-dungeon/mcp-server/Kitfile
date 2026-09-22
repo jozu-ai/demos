@@ -1,0 +1,11 @@
+manifestVersion: "1.0.0"
+package:
+  name: sunless-keep
+  version: "1.0.0"
+  description: "MCP server holding every piece of the dungeon's state"
+  authors:
+    - Jozu
+mcpServers:
+  - name: sunless-keep
+    path: sunless-keep.mcpb
+    description: "MCP server holding every piece of the dungeon's state"

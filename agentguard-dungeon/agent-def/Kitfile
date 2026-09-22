@@ -1,0 +1,10 @@
+manifestVersion: "1.0.0"
+package:
+  name: sunless-keep-agent
+  version: "1.0.0"
+  description: "A dungeon master as a custom agent runtime: a container image, a local model, an MCP server that owns the game, and a policy over both"
+  authors:
+    - Jozu
+code:
+  - path: agent-definition.yaml
+    description: "Agent definition whose spec.framework is an OCI image reference"

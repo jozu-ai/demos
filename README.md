@@ -19,6 +19,19 @@ $ open http://localhost:3000
 
 `agentguard-telemetry/README.md` covers what each panel shows, the denial walkthrough that makes the demo moment, and the timing quirks worth knowing before you present.
 
+## AgentGuard Dungeon Demo
+
+**The Sunless Keep** (`/agentguard-dungeon`): an interactive text adventure whose dungeon master is a 7B model running inside the microVM as a custom agent runtime, and whose every rule, item and hit point lives in an MCP server outside it. The audience types whatever they like and tries to cheat; three layers refuse them and each names itself on screen — the game's own rules, a ToolPolicy above them, and the sandbox. The model runs on the presenter's laptop under Ollama, so it costs nothing and survives a bad conference network.
+
+```sh
+$ cd agentguard-dungeon
+$ ./setup.sh        # before you go on stage — builds the image, the kits and the policy
+$ ./play.sh         # the demo; you type at the dungeon master
+$ ./reset.sh        # put it back
+```
+
+`agentguard-dungeon/README.md` carries the rehearsal — what to type, in what order, and what the audience should see at each refusal — plus what can go wrong on stage and how reliable a 7B model actually is at calling tools.
+
 ## KitOps Demos
 
 The KitOps demos:

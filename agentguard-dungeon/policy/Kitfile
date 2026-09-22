@@ -1,0 +1,10 @@
+manifestVersion: "1.0.0"
+package:
+  name: sunless-keep-policy
+  version: "1.0.0"
+  description: "What the dungeon master is permitted to do, as distinct from what the game allows"
+  authors:
+    - Jozu
+code:
+  - path: keep-rules.yaml
+    description: "ToolPolicy: the dungeon master may not grant the crown, and every tool call is recorded"
