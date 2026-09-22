@@ -1,0 +1,73 @@
+# Observability stack for AgentGuard demos.
+#
+#   agentguard run  →  host relay  →  otel-collector:4318  →  tempo / loki / prometheus
+#                                                          →  grafana
+#
+# The relay is what agentguard runs inside `agentguard run`; it holds the
+# collector address so the sandboxed agent never does. Point it here with:
+#
+#   export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+#
+# Then: docker compose up -d && open http://localhost:3000
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      # 4318 is the one that matters: it is what the relay forwards to.
+      - "4318:4318"   # OTLP/HTTP
+      - "4317:4317"   # OTLP/gRPC, for anything else you want to point here
+    depends_on: [tempo, loki, prometheus]
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+    ports:
+      - "3200:3200"
+
+  loki:
+    image: grafana/loki:3.3.2
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      # Accept OTLP writes from the collector. Prometheus 3.x renamed this from
+      # the 2.x --enable-feature=otlp-write-receiver; the old spelling is
+      # silently ignored rather than rejected, so the symptom is a 404 on
+      # /api/v1/otlp/v1/metrics and a dashboard with no data, not a crash.
+      - --web.enable-otlp-receiver
+      # Exemplar storage is still behind a feature flag. Without it Prometheus
+      # accepts the OTLP write and silently drops the exemplars on it, so the
+      # latency panels have no dots and nothing says why.
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Deliberately NOT setting GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH.
+      # That loads the JSON as the home dashboard, which Grafana reads once at
+      # startup — a second, frozen copy of the same file. Edits then appear in
+      # the provisioned dashboard while the home page keeps serving the old
+      # one, so the board looks broken and no amount of fixing changes it.
+      # Open /d/agentguard-governance instead; that copy hot-reloads.
+      GF_FEATURE_TOGGLES_ENABLE: traceToMetrics
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on: [tempo, loki, prometheus]

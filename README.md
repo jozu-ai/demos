@@ -5,6 +5,20 @@ CLI demos for KitOps use Demo-Magic to automate the command line execution, and 
 
 Other demos are available as MP4 files.
 
+## AgentGuard Telemetry Demo
+
+**Telemetry stack** (`/agentguard-telemetry`): a Grafana board fed by a real `agentguard run`, showing what policy decided, what it cost in latency, and what the agent spent in tokens — with the audit trail linked to the request that caused it. Covers both paths out of the sandbox, the model calls the agent makes and the MCP tool calls it makes.
+
+```sh
+$ cd agentguard-telemetry
+$ docker compose up -d
+$ export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+$ agentguard run claude-code
+$ open http://localhost:3000
+```
+
+`agentguard-telemetry/README.md` covers what each panel shows, the denial walkthrough that makes the demo moment, and the timing quirks worth knowing before you present.
+
 ## KitOps Demos
 
 There are two demos for KitOps:
