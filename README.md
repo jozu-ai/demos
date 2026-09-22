@@ -51,3 +51,39 @@ $ asciinema play -l wine-pack-annotated.cast
 ```
 
 Even in this mode you can still manually pause and unpause the recording using the <space> bar.
+
+## MCP Trust Demo
+
+**MCPB sign and verify** (`/cli-demos/mcpb-trust`): builds a real MCPB bundle from
+the `everything` MCP server, packages it as an OCI artifact with KitOps, signs and
+attests it with cosign, verifies it, then tampers with it and watches verification
+fail.
+
+The point is the split: **KitOps packages, plain cosign verifies.** Cosign has
+never heard of KitOps or Jozu, so verification needs none of our tools.
+
+This is the trust counterpart to the MCPB packaging demo in `/cli-demos/mcpb-pack`:
+that one packages all seven reference servers for agent definitions to consume,
+this one takes a single server and follows the signature end to end.
+
+It does not follow the Asciinema conventions above. It has its own `setup.sh` /
+`reset.sh` pair and ships a VHS tape instead of a `.cast` file, recorded to MP4:
+
+```sh
+$ cd cli-demos/mcpb-trust
+$ ./setup.sh        # before you go on stage - slow, network-dependent, idempotent
+$ ./mcp-trust.sh    # the demo; ENTER advances each command
+$ ./reset.sh        # put it back so you can run it again
+```
+
+`./mcp-trust.sh -n` runs straight through without waiting, for rehearsal. `-w2`
+auto-advances every two seconds. `./record-video.sh` produces `mcp-trust-demo.mp4`.
+
+Once `setup.sh` has run the demo is **fully offline** — it signs with a local key
+and pushes to a local `registry:2` container on port 5001, so a conference network
+cannot break it. It needs `mcpb`, `kit`, `cosign` (v3+), `docker`, `crane`, `jq`
+and `npm`.
+
+`cli-demos/mcpb-trust/README.md` carries the full step-by-step flow, the stage
+notes and the answers to the questions this demo reliably gets asked. Read it
+before presenting.
