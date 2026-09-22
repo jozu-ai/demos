@@ -1,0 +1,13 @@
+{
+  "name": "server-everything",
+  "version": "2.0.0",
+  "description": "MCP server that exercises all the features of the MCP protocol",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "jszip": "^3.10.1",
+    "zod": "^4.0.0"
+  }
+}

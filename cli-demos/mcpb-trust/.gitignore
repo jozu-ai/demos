@@ -1,0 +1,15 @@
+keys/
+package/
+bundle/node_modules/
+bundle/server/
+bundle/manifest.json
+bundle/README.md
+.pristine-index.js
+provenance.json
+sbom.json
+mcp-trust-demo.mp4
+
+# The repo root .gitignore carries a Python template whose `dist/` rule would
+# swallow server/dist/. That directory is the vendored pre-built `everything`
+# server and MUST be committed - the demo compiles nothing on stage.
+!server/dist/
