@@ -1,0 +1,57 @@
+apiVersion: agentguard.jozu.dev/v1
+kind: AgentDefinition
+metadata:
+  name: sunless-keep
+spec:
+  # An image reference rather than a framework name. There is no agent CLI to
+  # install: the application is the image, and AgentGuard runs it as a rootless
+  # container inside the microVM.
+  framework: 127.0.0.1:5111/agentguard-dungeon/dungeon-master:v1
+
+  includes:
+    # The model. It runs on the presenter's own laptop under Ollama.
+    #
+    # The endpoint below is a guest loopback address, and that is not where
+    # Ollama is. The gateway's HTTP client refuses to dial an RFC 1918 private
+    # address for a model upstream unless that provider entry opts in, and
+    # AgentGuard's provider configuration has no field for opting in — so
+    # naming the host directly, at 192.168.127.254, comes back as a 502 saying
+    # "connection to private IP 192.168.127.254 is not allowed". Loopback is
+    # always allowed, so the application opens a listener on this port inside
+    # the guest's own network namespace and carries the bytes the last hop to
+    # the host. The README says more; it is a shim around a gap, not a design.
+    #
+    # The endpoint is the server's root, not its /v1 path. The gateway appends
+    # the OpenAI path itself, so an endpoint written the way Ollama documents
+    # its own base URL arrives as /v1/v1/chat/completions and 404s with nothing
+    # to say why.
+    #
+    # The module's name is the only model name the application ever writes, and
+    # the gateway rewrites it to source.model on the wire. That rewrite is what
+    # `env` buys: a module declaring no credential cannot rewrite the model
+    # name, so a keyless module has to be named exactly what the upstream calls
+    # the model — which a tagged Ollama name like qwen2.5:7b cannot be, because
+    # a module name may not contain a colon. Declaring a credential restores
+    # the rewrite. Ollama ignores the value; the point is the indirection.
+    - name: dungeon-master
+      type: llm
+      source:
+        model: openai/qwen2.5:7b
+        endpoint: http://127.0.0.1:11434
+      env:
+        OPENAI_API_KEY: "ollama-accepts-any-token"
+
+    # The game. Every room, item, hit point and rule lives in this server and
+    # nowhere else, and it is packaged as a ModelKit carrying one MCPB bundle,
+    # so the whole of the application's state travels as a signed artifact.
+    - name: sunless-keep
+      type: mcp
+      source:
+        modelkit: 127.0.0.1:5111/agentguard-dungeon/sunless-keep:v1
+
+    # What the dungeon master is permitted to do, which is a narrower question
+    # than what the game allows.
+    - name: keep-rules
+      type: policy
+      source:
+        modelkit: 127.0.0.1:5111/agentguard-dungeon/sunless-keep-policy:v1

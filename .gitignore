@@ -169,3 +169,7 @@ TE-26-2/.claude/settings.local.json
 
 # Upstream modelcontextprotocol/servers checkout, cloned on demand by the demo
 cli-demos/mcpb-pack/servers/
+
+# Built by agentguard-dungeon/setup.sh, not checked in
+agentguard-dungeon/mcp-server/*.mcpb
+agentguard-dungeon/workspace/

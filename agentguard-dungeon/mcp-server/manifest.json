@@ -1,0 +1,15 @@
+{
+  "manifest_version": "0.3",
+  "name": "sunless-keep",
+  "version": "1.0.0",
+  "description": "The rules and the state of a small dungeon: rooms, items, health, and what a player is allowed to do",
+  "author": { "name": "Jozu" },
+  "server": {
+    "type": "python",
+    "entry_point": "server.py",
+    "mcp_config": {
+      "command": "python3",
+      "args": ["${__dirname}/server.py"]
+    }
+  }
+}

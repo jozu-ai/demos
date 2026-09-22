@@ -1,0 +1,55 @@
+# Governance sitting above the application's own logic.
+#
+# The MCP server has a `grant` tool: the dungeon master's power to put an item
+# straight into the player's hands. The game's own rules are perfectly happy
+# for it to hand over the crown — the crown is a real item, and `grant` is a
+# real tool that the application shipped on purpose.
+#
+# This says no anyway. That is the whole point of the layer: the server decides
+# what is legal in the game, and the policy decides what is permitted at all.
+# The two are different questions, owned by different people, and the second
+# one wins.
+#
+# The rule reads the call's arguments, so the same tool is allowed and refused
+# on the same turn depending on what is being asked for. `grant` a loaf of
+# bread and it goes through; `grant` the crown and it never reaches the server.
+apiVersion: gerty.jozu.dev/v1
+kind: ToolPolicy
+metadata:
+  name: no-gifting-the-crown
+spec:
+  match:
+    tool:
+      servers:
+        - sunless-keep
+      names:
+        - grant
+  action: Enforce
+  rules:
+    - name: the-crown-is-not-a-gift
+      # `contains` rather than an equality test so a model that asks for
+      # "crown" or "the gold crown" is caught by the policy rather than
+      # falling through to the game's own "no such item" refusal. Either is a
+      # correct answer; only one of them is the one this demo is showing.
+      assert: '!tool.arguments.item.contains("crown")'
+      message: >-
+        The crown is what the game is for. The dungeon master may hand out
+        anything else it likes; it may not hand out the crown.
+---
+# Every tool call in the keep, allowed or not, leaves a record. Audit does not
+# change any decision — it is here so the audit trail shown on stage is the
+# whole session rather than only the refusals.
+apiVersion: gerty.jozu.dev/v1
+kind: ToolPolicy
+metadata:
+  name: keep-tool-trail
+spec:
+  match:
+    tool:
+      servers:
+        - sunless-keep
+  action: Audit
+  rules:
+    - name: record-every-call
+      assert: "true"
+      message: "Tool call in the Sunless Keep"
